@@ -7,6 +7,7 @@ import tink.http.Header;
 import tink.http.Method;
 import tink.http.Request;
 import tink.http.Handler;
+import tink.http.Response;
 import haxe.DynamicAccess;
 import tink.http.Container;
 
@@ -44,8 +45,8 @@ private typedef LambdaInfo = {
 
 class NodeContainer implements Container {
 	
-	private static var trigger:FutureTrigger<LambdaInfo> = Future.trigger();
-	private static var lambdaRequest:Future<LambdaInfo> = trigger.asFuture();
+	private static var trigger:SignalTrigger<LambdaInfo> = Signal.trigger();
+	private static var lambdaRequest:Signal<LambdaInfo> = trigger;
 	
 	@:expose('handler')
 	public static function lambdaHandler(event:Info, context:Context):Void {
@@ -67,7 +68,7 @@ class NodeContainer implements Container {
 					if (uriParts[i].startsWith('{')) {
 						var da:DynamicAccess<String> = data.event.params;
 						var key = uriParts[i].substring(1, uriParts[i].length - 1);
-						trace( uriParts, uriParts[i], da.keys(), key, da.exists( key ), da.get( key ) );
+						trace( uriParts, uriParts[i], da.keys(), key, da.exists( key ), da.get( key ), untyped __typeof__(da.get( key )) );
 						
 						if ( da.exists( key ) ) {
 							uriParts[i] = da.get( key );
@@ -90,30 +91,33 @@ class NodeContainer implements Container {
 						Plain(data.event.body)
 					)
 					
-				).handle(function(response) {
-					response.body.all().handle(function(value) switch value {
-						case Success(body):
-							var json = haxe.Json.stringify({
-								code:response.header.statusCode,
-								reason:response.header.reason,
-								headers: [for (h in response.header.fields) h.toString()],
-								body: body.toString(),
-							});
-							trace( json );
-							data.context.succeed(json);
-
-						case Failure(error):
-							trace( error.toString() );
-							data.context.fail(error.toString());
-							
-					});
-					
-				});
+				).handle( handleResponse.bind(_, data) );
 				
 			});
 			
 		});
 		
 	}
+
+	private function handleResponse(response:OutgoingResponse, data:LambdaInfo) {
+		trace( 'handling response' );
+		response.body.all().handle(function(value) switch value {
+			case Success(body):
+				var json = haxe.Json.stringify({
+					code:response.header.statusCode,
+					reason:response.header.reason,
+					headers: [for (h in response.header.fields) h.toString()],
+					body: body.toString(),
+				});
+				trace( json );
+				data.context.succeed(json);
+
+			case Failure(error):
+				trace( error.toString() );
+				data.context.fail(error.toString());
+				
+			});
+			
+		}
 	
 }
