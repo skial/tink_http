@@ -13,8 +13,7 @@ import tink.http.Container;
 using StringTools;
 using tink.CoreApi;
 
-
-private typedef NodeContext = {
+private typedef Context = {
 	var succeed:String->Void;
 	var fail:String->Void;
 	var done:Void->Void;
@@ -28,7 +27,7 @@ private typedef NodeContext = {
 	var logStreamName:String;
 }
 
-private typedef RequestInfo = {
+private typedef Info = {
 	var ip:String;
 	var body:String;
 	var method:String;
@@ -39,8 +38,8 @@ private typedef RequestInfo = {
 }
 
 private typedef LambdaInfo = {
-	var event:RequestInfo;
-	var context:NodeContext;
+	var event:Info;
+	var context:Context;
 }
 
 class NodeContainer implements Container {
@@ -49,7 +48,7 @@ class NodeContainer implements Container {
 	private static var lambdaRequest:Future<LambdaInfo> = trigger.asFuture();
 	
 	@:expose('handler')
-	public static function lambdaHandler(event:RequestInfo, context:NodeContext):Void {
+	public static function lambdaHandler(event:Info, context:Context):Void {
 		trace(event, context);
 		trigger.trigger({event:event, context:context});
 	}
