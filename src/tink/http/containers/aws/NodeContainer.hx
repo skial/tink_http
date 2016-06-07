@@ -101,8 +101,7 @@ class NodeContainer implements Container {
 
 	private function handleResponse(response:OutgoingResponse, data:LambdaInfo) {
 		trace( 'handling response' );
-		response.body.all().handle(function(value) switch value {
-			case Success(body):
+		response.body.all().handle(function(body) {
 				var json = haxe.Json.stringify({
 					code:response.header.statusCode,
 					reason:response.header.reason,
@@ -111,11 +110,6 @@ class NodeContainer implements Container {
 				});
 				trace( json );
 				data.context.succeed(json);
-
-			case Failure(error):
-				trace( error.toString() );
-				data.context.fail(error.toString());
-				
 			});
 			
 		}
