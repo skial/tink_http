@@ -10,6 +10,7 @@ import tink.http.Handler;
 import tink.http.Response;
 import haxe.DynamicAccess;
 import tink.http.Container;
+import tink.http.StructuredBody;
 
 using StringTools;
 using tink.CoreApi;
@@ -30,9 +31,9 @@ private typedef Context = {
 
 private typedef Info = {
 	var ip:String;
-	var body:String;
 	var method:String;
 	var resourcePath:String;
+	var body:DynamicAccess<Any>;
 	var query:DynamicAccess<String>;
 	var params:DynamicAccess<String>;
 	var headers:DynamicAccess<String>;
@@ -87,8 +88,9 @@ class NodeContainer implements Container {
 							uriParts.join('/'), // Requested Path.
 							'1.1', // Assumed value, not sure how to work it out from available aws lambda & gateway info.
 							[for (key in data.event.headers.keys()) new HeaderField(key, data.event.headers.get( key ))]	// Mapped headers
-						), 
-						Plain(data.event.body)
+						),
+						Plain(haxe.Json.stringify( data.event.body )) 
+						//Parsed( [for (key in data.event.body.keys()) new Named( key, Value( data.event.body.get( key ) ) )] )
 					)
 					
 				).handle( handleResponse.bind(_, data) );
@@ -102,16 +104,25 @@ class NodeContainer implements Container {
 	private function handleResponse(response:OutgoingResponse, data:LambdaInfo) {
 		trace( 'handling response' );
 		response.body.all().handle(function(body) {
-				var json = haxe.Json.stringify({
-					code:response.header.statusCode,
-					reason:response.header.reason,
-					headers: [for (h in response.header.fields) h.toString()],
-					body: body.toString(),
-				});
-				trace( json );
-				data.context.succeed(json);
-			});
+			var headers = {};
+			//var responseParams = {};
+			for (h in response.header.fields) {
+				Reflect.setField(headers, h.name, h.value);
+				//Reflect.setField(responseParams, 'method.response.header.${h.name}', false);
+				
+			}
 			
-		}
+			var json = haxe.Json.stringify({
+				statusCode: '' + response.header.statusCode,
+				reason:response.header.reason,
+				headers: headers,
+				//responseParameters: responseParams,
+				body: body.toString(),
+			});
+			trace( json );
+			data.context.succeed(json);
+		});
+			
+	}
 	
 }
